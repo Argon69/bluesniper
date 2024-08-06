@@ -12,7 +12,7 @@ def scan_devices():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        print("Dispositivos encontrados:")
+        print("\nDispositivos encontrados:\n")
         print(result.stdout.decode())
     except subprocess.CalledProcessError as e:
         print(f"Error al escanear dispositivos: {e}")
@@ -48,19 +48,27 @@ def get_device_address():
         print("Dirección inválida. Por favor, usa el formato XX:XX:XX:XX:XX:XX.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Envía comandos a un dispositivo Bluetooth repetidamente.")
-    parser.add_argument("interface", type=str, help="La interfaz Bluetooth a usar (por ejemplo, hci0).")
-    parser.add_argument("--scan", action="store_true", help="Escanea dispositivos Bluetooth cercanos.")
-    parser.add_argument("--interval", type=float, default=1.0, help="Intervalo en segundos entre comandos.")
-    
-    args = parser.parse_args()
-    
-    if args.scan:
-        scan_devices()
-        return
-    
-    device_address = get_device_address()
-    flood_data(args.interface, device_address, args.interval)
+    print("Bienvenido al script de gestión de Bluetooth")
+    print("Seleccione una opción:")
+    print("1. Escanear dispositivos Bluetooth cercanos")
+    print("2. Enviar paquetes a un dispositivo específico")
+    print("3. Salir")
+
+    while True:
+        choice = input("\nIntroduce el número de la opción deseada: ")
+
+        if choice == '1':
+            scan_devices()
+        elif choice == '2':
+            interface = input("Introduce la interfaz Bluetooth (por ejemplo, hci0): ")
+            device_address = get_device_address()
+            interval = float(input("Introduce el intervalo en segundos entre comandos (por defecto 1.0): ") or "1.0")
+            flood_data(interface, device_address, interval)
+        elif choice == '3':
+            print("Saliendo...")
+            break
+        else:
+            print("Opción no válida. Por favor, selecciona una opción del 1 al 3.")
 
 if __name__ == "__main__":
     main()
